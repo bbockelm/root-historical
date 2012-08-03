@@ -140,6 +140,7 @@ protected:
    TBranchRef    *fBranchRef;         //  Branch supporting the TRefTable (if any)
    UInt_t         fFriendLockStatus;  //! Record which method is locking the friend recursion
    TBuffer       *fTransientBuffer;   //! Pointer to the current transient buffer.
+   Int_t          fEngineMemory;      //! Amount of memory to dedicate to the compression engine.  Set to -1 for unlimited.
 
    static Int_t     fgBranchStyle;      //  Old/New branch style
    static Long64_t  fgMaxTreeSize;      //  Maximum size of a file containg a Tree
@@ -541,7 +542,7 @@ public:
    void                    UseCurrentStyle();
    virtual Int_t           Write(const char *name=0, Int_t option=0, Int_t bufsize=0);
    virtual Int_t           Write(const char *name=0, Int_t option=0, Int_t bufsize=0) const;
-
+   void                    SetEngineMemory(Int_t memory) {fEngineMemory = memory;}
 
    ClassDef(TTree,19)  //Tree descriptor (the main ROOT I/O class)
 };

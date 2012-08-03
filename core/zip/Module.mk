@@ -24,7 +24,8 @@ ZIPOLDH      := $(MODDIRI)/Bits.h       \
                 $(MODDIRI)/ZDeflate.h   \
                 $(MODDIRI)/ZIP.h        \
                 $(MODDIRI)/ZTrees.h     \
-                $(MODDIRI)/Compression.h
+                $(MODDIRI)/Compression.h \
+                $(MODDIRI)/CompressionEngine.h
 
 ZIPOLDS      := $(MODDIRS)/ZDeflate.c   \
                 $(MODDIRS)/ZInflate.c
@@ -63,7 +64,7 @@ else
 ZIPH         := $(ZIPOLDH)
 ZIPS         := $(ZIPOLDS)
 endif
-ZIPS1        := $(MODDIRS)/Compression.cxx
+ZIPS1        := $(MODDIRS)/Compression.cxx $(MODDIRS)/CompressionEngine.cxx
 ZIPO         := $(call stripsrc,$(ZIPS:.c=.o) $(ZIPS1:.cxx=.o))
 ZIPDEP       := $(ZIPO:.o=.d) $(ZIPDO:.o=.d)
 

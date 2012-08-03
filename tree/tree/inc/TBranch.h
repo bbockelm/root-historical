@@ -12,6 +12,7 @@
 #ifndef ROOT_TBranch
 #define ROOT_TBranch
 
+#include <memory>
 
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
@@ -38,6 +39,10 @@
 
 #ifndef ROOT_TDataType
 #include "TDataType.h"
+#endif
+
+#ifndef ROOT_CompressionEngine
+#include "CompressionEngine.h"
 #endif
 
 class TTree;
@@ -125,6 +130,8 @@ private:
    TBranch(const TBranch&);             // not implemented
    TBranch& operator=(const TBranch&);  // not implemented
 
+   std::auto_ptr<ROOT::CompressionEngine> fCompressionEngine; //! Current compression engine.
+
 public:
    TBranch();
    TBranch(TTree *tree, const char *name, void *address, const char *leaflist, Int_t basketsize=32000, Int_t compress=-1);
@@ -154,6 +161,7 @@ public:
            Int_t     GetCompressionAlgorithm() const;
            Int_t     GetCompressionLevel() const;
            Int_t     GetCompressionSettings() const;
+  ROOT::CompressionEngine *GetCompressionEngine() const {return fCompressionEngine.get();}
    TDirectory       *GetDirectory() const {return fDirectory;}
    virtual Int_t     GetEntry(Long64_t entry=0, Int_t getall = 0);
    virtual Int_t     GetEntryExport(Long64_t entry, Int_t getall, TClonesArray *list, Int_t n);
@@ -204,6 +212,7 @@ public:
    void              SetCompressionAlgorithm(Int_t algorithm=0);
    void              SetCompressionLevel(Int_t level=1);
    void              SetCompressionSettings(Int_t settings=1);
+   void              SetCompressionEngine(std::auto_ptr<ROOT::CompressionEngine> engine) {fCompressionEngine = engine;}
    virtual void      SetEntries(Long64_t entries);
    virtual void      SetEntryOffsetLen(Int_t len, Bool_t updateSubBranches = kFALSE);
    virtual void      SetFirstEntry( Long64_t entry );

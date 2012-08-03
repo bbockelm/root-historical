@@ -84,6 +84,7 @@ public:
    enum { kStreamedMemberWise = BIT(14) }; //added to version number to know if a collection has been stored member-wise
    enum { kNotDecompressed = BIT(15) };    //indicates a weird buffer, used by TBasket
    enum { kTextBasedStreaming = BIT(18) }; //indicates if buffer used for XML/SQL object streaming
+   enum { kRelativeOffset = BIT(19) };     //indicates the buffer should be serialized with a relative offset table.
    enum { kUser1 = BIT(21), kUser2 = BIT(22), kUser3 = BIT(23)}; //free for user
 
    TBufferFile(TBuffer::EMode mode);

@@ -18,6 +18,9 @@
 #include "TTreeCache.h"
 #include "TVirtualPerfStats.h"
 #include "TTimeStamp.h"
+#include "CompressionEngine.h"
+
+#include <assert.h>
 
 // TODO: Copied from TBranch.cxx
 #if (__GNUC__ >= 3) || defined(__INTEL_COMPILER)
@@ -124,6 +127,7 @@ TBasket::TBasket(const char *name, const char *title, TBranch *branch) :
       for (Int_t i=0;i<fNevBufSize;i++) fEntryOffset[i] = 0;
    }
    branch->GetTree()->IncrementTotalBuffers(fBufferSize);
+   SetBit(TBufferFile::kRelativeOffset);
 }
 
 //_______________________________________________________________________
@@ -595,6 +599,12 @@ AfterBuffer:
       Warning("ReadBasketBuffers","basket:%s has fNevBuf=%d but fEntryOffset=0, pos=%lld, len=%d, fNbytes=%d, fObjlen=%d, trying to repair",GetName(),fNevBuf,pos,len,fNbytes,fObjlen);
       return 0;
    }
+   if (TestBit(TBufferFile::kRelativeOffset) && (fNevBuf > 1))
+   {
+      for(Int_t z = 1; z < fNevBuf; z++) {
+         fEntryOffset[z] = fEntryOffset[z] - fEntryOffset[z-1];
+      }
+   }
    // Read the array of diplacement if any.
    delete [] fDisplacement;
    fDisplacement = 0; 
@@ -926,13 +936,13 @@ Int_t TBasket::WriteBuffer()
    // Transfer fEntryOffset table at the end of fBuffer.
    fLast = fBufferRef->Length();
    if (fEntryOffset) {
-      // Note: We might want to investigate the compression gain if we 
-      // transform the Offsets to fBuffer in entry length to optimize 
-      // compression algorithm.  The aggregate gain on a (random) CMS files
-      // is around 5.5%. So the code could something like:
-      //      for(Int_t z = fNevBuf; z > 0; --z) {
-      //         if (fEntryOffset[z]) fEntryOffset[z] = fEntryOffset[z] - fEntryOffset[z-1];
-      //      }
+      // Note: The aggregate on a randomly selected CMS file is about
+      // 5.5% by using relative offsets.
+      if (TestBit(TBufferFile::kRelativeOffset)) {
+         for(Int_t z = fNevBuf; z > 0; --z) {
+            if (fEntryOffset[z]) fEntryOffset[z] = fEntryOffset[z] - fEntryOffset[z-1];
+         }
+      }
       fBufferRef->WriteArray(fEntryOffset,fNevBuf+1);
       if (fDisplacement) {
          fBufferRef->WriteArray(fDisplacement,fNevBuf+1);
@@ -966,7 +976,16 @@ Int_t TBasket::WriteBuffer()
          if (i == nbuffers - 1) bufmax = fObjlen - nzip;
          else bufmax = kMAXBUF;
          //compress the buffer
-         R__zipMultipleAlgorithm(cxlevel, &bufmax, objbuf, &bufmax, bufcur, &nout, cxAlgorithm);
+         ROOT::CompressionEngine *engine = fBranch->GetCompressionEngine();
+         if (engine) {
+            fBufferRef->SetBufferOffset(fKeylen);
+            nout = engine->Compress(*fBufferRef, fKeylen, *fCompressedBufferRef, fKeylen);
+            // TODO: handle error case!
+            assert (nout >= 0);
+         }
+         else {
+            R__zipMultipleAlgorithm(cxlevel, &bufmax, objbuf, &bufmax, bufcur, &nout, cxAlgorithm);
+         }
 
          // test if buffer has really been compressed. In case of small buffers 
          // when the buffer contains random data, it may happen that the compressed

@@ -368,6 +368,7 @@
 #include <string>
 #include <stdio.h>
 #include <limits.h>
+#include <assert.h>
 
 Int_t    TTree::fgBranchStyle = 1;  // Use new TBranch style with TBranchElement.
 Long64_t TTree::fgMaxTreeSize = 100000000000LL;
@@ -5969,6 +5970,73 @@ void TTree::OptimizeBaskets(ULong64_t maxMemory, Float_t minComp, Option_t *opti
    if (pDebug) {
       printf("oldMemsize = %d,  newMemsize = %d\n",oldMemsize, newMemsize);
       printf("oldBaskets = %d,  newBaskets = %d\n",oldBaskets, newBaskets);
+   }
+
+   // Assign engines to branches, if we have the memory.
+   ROOT::CompressionEngineFactory factory;
+   if (fEngineMemory == -1)
+   {
+      for (i=0;i<nleaves;i++) {
+         TLeaf *leaf = (TLeaf*)leaves->At(i);
+         std::auto_ptr<ROOT::CompressionEngine> engine = factory.Create();
+         TBranch *branch = leaf->GetBranch();
+         branch->SetCompressionEngine(engine); // Note we leave the defaults.
+      }
+      return;
+   }
+   unsigned int memoryLevel;
+   size_t perEngine;
+   size_t windowSize = 0;
+   {
+      // TODO: reverse this loop.  Start with the smallest memory (most likely)
+      // and move up.
+      std::auto_ptr<ROOT::CompressionEngine> engine = factory.Create();
+      assert(engine.get());
+      memoryLevel = engine->GetMaxMemoryLevel();
+      while (memoryLevel)
+      {
+         engine->SetMemoryLevel(memoryLevel);
+         perEngine = engine->GetMemoryEstimate();
+         windowSize = engine->GetWindowSize();
+         size_t branchCount = 0;
+         for (i=0;i<nleaves;i++) {
+            TLeaf *leaf = (TLeaf*)leaves->At(i);
+            TBranch *branch = leaf->GetBranch();
+            if (branch->GetBasketSize() < (ssize_t)windowSize)
+               branchCount++;
+         }
+         if (branchCount*engine->GetWindowSize() < (UInt_t)fEngineMemory)
+            break;
+         memoryLevel--;
+      }
+   }
+   ssize_t memoryRemaining = fEngineMemory;
+   if (windowSize) for (i=0; memoryRemaining > 0 && i<nleaves; i++)
+   {
+      TLeaf *leaf = (TLeaf*)leaves->At(i);
+      TBranch *branch = leaf->GetBranch();
+      if (branch->GetBasketSize() < (ssize_t)windowSize)
+      {
+         std::auto_ptr<ROOT::CompressionEngine> engine = factory.Create();
+         engine->SetMemoryLevel(memoryLevel);
+         branch->SetCompressionEngine(engine);
+         memoryRemaining -= perEngine;
+      }
+   }
+   // Note: we take up wherever we left off above.
+   while (windowSize && (memoryRemaining > 0) && (i<nleaves))
+   {
+      TLeaf *leaf = (TLeaf*)leaves->At(i);
+      TBranch *branch = leaf->GetBranch();
+      if (branch->GetBasketSize() >= (ssize_t)windowSize)
+      {
+         std::auto_ptr<ROOT::CompressionEngine> engine = factory.Create();
+         assert(engine.get());
+         engine->SetMemoryLevel(memoryLevel);
+         branch->SetCompressionEngine(engine);
+         memoryRemaining -= perEngine;
+      }
+      i++;
    }
 }
 
