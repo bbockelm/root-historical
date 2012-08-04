@@ -59,7 +59,7 @@ public:
   // In such a case, the contents of the output TBuffer are undefined.
   // The resulting output buffer should be able to be decompressed stand-alone, and has the ROOT-specific
   // header.
-  virtual ssize_t Compress(const TBuffer & in, off_t input_offset, TBuffer& out, off_t output_offset) = 0;
+  virtual ssize_t Compress(const char * input, size_t input_size, char * output, size_t output_size) = 0;
 
   // Reset the state of the compression engine.  Invoke Reset between calls to reset if you will be
   // compressing drastically different data.  By not calling Reset for similar data (i.e., the same
@@ -86,7 +86,7 @@ public:
   virtual bool SetMemoryLevel(int memory) { if (memory < 0 || memory > 3) return false; m_memory = memory; return true;}
   virtual size_t GetMaxMemoryLevel() {return 3;}
   virtual size_t GetWindowSize() {return 1 << (15+m_memory-3);}
-  virtual ssize_t Compress(const TBuffer &in, off_t input_offset, TBuffer &out, off_t output_offset);
+  virtual ssize_t Compress(const char * input, size_t input_size, char * output, size_t output_size) ;
   virtual void Reset();
   virtual size_t GetMemoryEstimate();
 

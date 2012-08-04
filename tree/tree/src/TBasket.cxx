@@ -979,7 +979,7 @@ Int_t TBasket::WriteBuffer()
          ROOT::CompressionEngine *engine = fBranch->GetCompressionEngine();
          if (engine) {
             fBufferRef->SetBufferOffset(fKeylen);
-            nout = engine->Compress(*fBufferRef, fKeylen, *fCompressedBufferRef, fKeylen);
+            nout = engine->Compress(objbuf, bufmax, bufcur, bufmax);
             // TODO: handle error case!
             assert (nout >= 0);
          }

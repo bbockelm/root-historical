@@ -5972,6 +5972,59 @@ void TTree::OptimizeBaskets(ULong64_t maxMemory, Float_t minComp, Option_t *opti
       printf("oldBaskets = %d,  newBaskets = %d\n",oldBaskets, newBaskets);
    }
 
+   size_t targetMemory = 50*1024*1024;
+   size_t totalMemory = 0;
+   std::vector<UInt_t> branch_sizes; branch_sizes.reserve(nleaves);
+   std::vector<UInt_t> branch_sizes_tmp; branch_sizes_tmp.reserve(nleaves);
+   std::vector<UInt_t> branch_index; branch_index.reserve(nleaves);
+   for (i=0;i<nleaves;i++) {
+      TLeaf *leaf = (TLeaf*)leaves->At(i);
+      TBranch *branch = leaf->GetBranch();
+      branch_sizes[i] = branch->GetBasketSize();
+      branch_index[i] = i;
+      totalMemory += branch_sizes[i];
+   }
+   printf("Starting memory: %d\n", totalMemory);
+   TMath::Sort((UInt_t)nleaves,&branch_sizes[0],&branch_index[0],kFALSE);
+   while (totalMemory > targetMemory)
+   {
+       bool change = false;
+       UInt_t resort = branch_sizes[nleaves-1]/2;
+       for (i=nleaves-1;i>=0;i--) {
+          TLeaf *leaf = (TLeaf*)leaves->At(branch_index[i]);
+          TBranch *branch = leaf->GetBranch();
+          Double_t totBytes = (Double_t)branch->GetTotBytes();
+          UInt_t sizeOfOneEntry = 1+(UInt_t)(totBytes / (Double_t)branch->GetEntries());
+          if ((branch_sizes[branch_index[i]] > resort) && (branch_sizes[branch_index[i]] > sizeOfOneEntry)) {
+             UInt_t new_size = branch_sizes[branch_index[i]]/2;
+             branch_sizes[branch_index[i]] = new_size;
+             totalMemory -= new_size;
+             change = true;
+          }
+          if (branch_sizes[branch_index[i]] <= resort)
+          {
+             for (int idx=0;idx<nleaves;idx++)
+                branch_sizes_tmp[branch_index[idx]] = branch_sizes[idx];
+             for (int idx=0;idx<nleaves;idx++) {
+                branch_sizes[idx] = branch_sizes_tmp[idx];
+                branch_index[idx] = idx;
+             }
+             TMath::Sort((UInt_t)nleaves,&branch_sizes[0],&branch_index[0],kFALSE);
+             break;
+          }
+          if (totalMemory <= targetMemory)
+             break;
+       }
+       if (!change)
+          break;
+   }
+   for (i=0;i<nleaves;i++) {
+      TLeaf *leaf = (TLeaf*)leaves->At(i);
+      TBranch *branch = leaf->GetBranch();
+      branch->SetBasketSize(branch_sizes[i]);
+   }
+   printf("Total memory used: %d\n", totalMemory);
+
    // Assign engines to branches, if we have the memory.
    ROOT::CompressionEngineFactory factory;
    if (fEngineMemory == -1)
@@ -5982,6 +6035,7 @@ void TTree::OptimizeBaskets(ULong64_t maxMemory, Float_t minComp, Option_t *opti
          TBranch *branch = leaf->GetBranch();
          branch->SetCompressionEngine(engine); // Note we leave the defaults.
       }
+      printf("Added engines to %d branches.\n", nleaves);
       return;
    }
    unsigned int memoryLevel;
